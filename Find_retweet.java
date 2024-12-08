@@ -3,6 +3,7 @@ package org.example;
 import java.io.*;
 import java.lang.*;
 
+import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
@@ -16,8 +17,8 @@ import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
 
-public class Find_Tweets {
-    static String filePath = "tweets.txt";
+public class Find_retweet {
+    static String filePath = "edge2.txt";
     public static void main(String[] args) {
         System.setProperty("webdriver.edge.driver", "D:\\Code\\Edgedriver\\msedgedriver.exe");
 
@@ -60,49 +61,75 @@ public class Find_Tweets {
 
             wait.until(ExpectedConditions.urlContains("home"));
 
-            String fileKOL = "KOL.txt";
+            String fileKOL = "tweets.txt";
             rf();
 
             try (BufferedReader br = new BufferedReader(new FileReader(fileKOL))) {
-                String acc;
-                while ((acc = br.readLine()) != null){
-                    int spaceIndex = acc.indexOf(' ');
-                    if (spaceIndex != -1) {
-                        acc = acc.substring(0, spaceIndex);
+                String tweet;
+                while ((tweet = br.readLine()) != null) {
+                    String userAd = tweet.split("/")[3];
+                    tweet = tweet + "/retweets";
+                    driver.get(tweet);
+                    System.out.println(tweet);
+                    System.out.println(userAd);
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
                     }
 
-                    driver.get(acc);
-                    System.out.println(acc);
-
                     JavascriptExecutor js = (JavascriptExecutor) driver;
-                    HashSet<String> tweetUrls = new HashSet<>();
+                    HashSet<String> userProfileUrls = new HashSet<>();
 
-                    while(tweetUrls.size() < 10) {
+                    Number scrollPositionBefore = (Number) js.executeScript("return window.scrollY");
+                    js.executeScript("window.scrollBy(0, 100);");
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    Number scrollPositionAfter = (Number) js.executeScript("return window.scrollY");
+
+                    while(!scrollPositionBefore.equals(scrollPositionAfter)) {
                         try {
-                            Thread.sleep(5000);
+                            Thread.sleep(3000);
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
-                        wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.cssSelector("article[role='article']")));
-                        List<WebElement> tweets = driver.findElements(By.cssSelector("article[role='article']"));
+                        wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.cssSelector("button[role='button']")));
+                        List<WebElement> users = driver.findElements(By.cssSelector("button[role='button']"));
 
-                        int tweetCount = Math.min(tweets.size(), 10);
-                        System.out.println(tweetCount);
-                        for (int j = 0; j < tweetCount; j++) {
-                            WebElement tweet = tweets.get(j);
-//                            System.out.println(tweet);
-                            WebElement tweetLinkElement = tweet.findElement(By.cssSelector("a[href*='/status/']"));
-                            String tweetUrl = tweetLinkElement.getAttribute("href");
-                            System.out.println(tweetUrl);
-                            if(tweetUrls.size() < 10){
-                                tweetUrls.add(tweetUrl);
+                        System.out.println(users.size());
+                        for (WebElement user : users){
+                            try {
+                                WebElement userProfileLink = user.findElement(By.cssSelector("a[href*='/']"));
+                                String userProfileUrl = userProfileLink.getAttribute("href");
+                                if (userProfileUrl != null && userProfileUrl.startsWith("https://x.com/")) {
+                                    System.out.println(userProfileUrl);
+                                    userProfileUrls.add(userProfileUrl);
+                                }
+                            } catch (Exception e) {
+                                continue;
                             }
                         }
-                        js.executeScript("window.scrollBy(0, 2000);");
+
+                        js.executeScript("window.scrollBy(0, 1000);");
+
+                        scrollPositionBefore = (Number) js.executeScript("return window.scrollY");
+                        js.executeScript("window.scrollBy(0, 100);");
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        scrollPositionAfter = (Number) js.executeScript("return window.scrollY");
                     }
-                    for (String tweetUrl : tweetUrls)
-                        writeToFile(tweetUrl);
-//                    new_Line();
+                    for (String user : userProfileUrls) {
+                        writeToFile(tweet);
+                        writeToFile(" ");
+                        writeToFile(user);
+                        writeToFile("\n");
+                    }
                 }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -121,7 +148,6 @@ public class Find_Tweets {
     public static void writeToFile(String url) {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath, true))) {
             writer.write(url);
-            writer.newLine();
         } catch (IOException e) {
         }
     }
