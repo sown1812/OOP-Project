@@ -1,59 +1,153 @@
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import org.json.JSONArray;
-import org.json.JSONObject;
+package org.example;
+
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.edge.EdgeDriver;
+import org.openqa.selenium.edge.EdgeOptions;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
+
+import java.util.HashSet;
+import java.util.Set;
+import java.util.ArrayList;s
+import java.util.List;
+
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+
+import java.time.Duration;
 
 public class Find_KOL {
-
-    private static final String BEARER_TOKEN = "AAAAAAAAAAAAAAAAAAAAAMMmxQEAAAAATlgRfQfrlW0hvOi9xv9qhZB9Opw%3DP1CoW468fKIwUXazKIEVMjyEf03nGbcA8Ash0cJtJd5Y380hC8";
-
+    static String filePath = "KOL.txt";
     public static void main(String[] args) {
-        String hashtag = "yourHashtag";
+        System.setProperty("webdriver.edge.driver", "D:\\Code\\Edgedriver\\msedgedriver.exe");
 
-        String urlString = "https://api.twitter.com/2/tweets/search/recent?query=%23" + hashtag + "&max_results=10";
+        EdgeOptions options = new EdgeOptions();
+//        options.addArguments("--start-maximized");
+//        options.addArguments("--headless");
+        options.addArguments("--disable-notifications");
+
+        WebDriver driver = new EdgeDriver(options);
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(45));
 
         try {
-            // Tạo kết nối URL
-            URL url = new URL(urlString);
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            driver.get("https://twitter.com/login");
 
-            // Cấu hình request
-            connection.setRequestMethod("GET");
-            connection.setRequestProperty("Authorization", "Bearer " + BEARER_TOKEN);
-            connection.setRequestProperty("Content-Type", "application/json");
+            wait.until(ExpectedConditions.presenceOfElementLocated(By.name("text")));
 
-            // Đọc kết quả từ API
-            int responseCode = connection.getResponseCode();
-            if (responseCode == 200) {
-                BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8));
-                String inputLine;
-                StringBuilder response = new StringBuilder();
+            WebElement usernameField = driver.findElement(By.name("text"));
+            usernameField.sendKeys("ahkey357@gmail.com");
 
-                while ((inputLine = in.readLine()) != null) {
-                    response.append(inputLine);
-                }
-                in.close();
+            WebElement nextButton = driver.findElement(By.xpath("//span[text()='Next']"));
+            nextButton.click();
 
-                // Phân tích kết quả JSON
-                JSONObject jsonResponse = new JSONObject(response.toString());
-                JSONArray tweets = jsonResponse.getJSONArray("data");
-
-                // Lấy thông tin các user từ author_id
-                System.out.println("List of Users who used the hashtag:");
-                for (int i = 0; i < tweets.length(); i++) {
-                    JSONObject tweet = tweets.getJSONObject(i);
-                    System.out.println("User ID: " + tweet.getString("author_id"));
-                    System.out.println("Tweet: " + tweet.getString("text"));
-                    System.out.println("-----");
-                }
-            } else {
-                System.out.println("Failed to fetch tweets. HTTP Response Code: " + responseCode);
+            try {
+                wait.until(ExpectedConditions.presenceOfElementLocated(By.name("text")));
+                WebElement check = driver.findElement(By.name("text"));
+                check.sendKeys("@tran_key666");
+                WebElement nextButton_2 = driver.findElement(By.xpath("//span[text()='Next']"));
+                nextButton_2.click();
+            } catch (Exception e) {
+                System.out.println("Element not found!");
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+
+            wait.until(ExpectedConditions.presenceOfElementLocated(By.name("password")));
+
+            WebElement passwordField = driver.findElement(By.name("password"));
+            passwordField.sendKeys("Key123456");
+
+            WebElement loginButton = driver.findElement(By.xpath("//span[text()='Log in']"));
+            loginButton.click();
+
+            wait.until(ExpectedConditions.urlContains("home"));
+
+            String hashtag = "blockchain";
+            driver.get("https://twitter.com/search?q=%23" + hashtag + "&src=typed_query");
+
+            JavascriptExecutor js = (JavascriptExecutor) driver;
+            HashSet<String> userProfileUrls = new HashSet<>();
+
+            for (int i = 0; i < 10; i++) {
+                js.executeScript("window.scrollBy(0, 2000);");
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("article")));
+                List<WebElement> tweets = driver.findElements(By.cssSelector("article"));
+                System.out.println(tweets.size());
+                for (WebElement tweet : tweets){
+                    WebElement userElement = tweet.findElement(By.cssSelector("div[dir='ltr'] span"));
+
+                    String UserName = userElement.getText();
+                    WebElement userProfileLink = tweet.findElement(By.cssSelector("a[href*='/']"));
+
+                    String userProfileUrl = userProfileLink.getAttribute("href");
+                    userProfileUrls.add(userProfileUrl);
+                }
+            }
+
+            rf();
+
+            for (String userProfileUrl : userProfileUrls) {
+                try {
+                    driver.get(userProfileUrl);
+                    wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("a[href*='/verified_followers']")));
+
+                    WebElement followersElement = driver.findElement(By.cssSelector("a[href*='/verified_followers']"));
+                    String followersText = followersElement.getText();
+
+                    int followersCount = parseFollowersCount(followersText);
+                    System.out.println(followersText);
+                    System.out.println(followersCount);
+
+                    if (followersCount > 100000) {
+                        writeToFile(userProfileUrl, followersCount);
+                    }
+
+                } catch (Exception e) {
+                    System.out.println("Error processing tweet: " + e.getMessage());
+                }
+            }
+        } finally {
+            driver.quit();
+        }
+    }
+
+    private static int parseFollowersCount(String followersText) {
+        followersText = followersText.replace(",", "").toLowerCase();
+        followersText = followersText.replace(" followers", "").trim();
+
+        if (followersText.contains("k")) {
+            followersText = followersText.replace("k", "").trim();
+            return (int) (Float.parseFloat(followersText) * 1000);
+        } else if (followersText.contains("m")) {
+            followersText = followersText.replace("m", "").trim();
+            return (int) (Float.parseFloat(followersText) * 1000000);
+        }
+
+        return Integer.parseInt(followersText);
+    }
+
+    public static void rf() {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath, false))) {
+        } catch (IOException e) {
+        }
+    }
+
+    public static void writeToFile(String KOL, int x) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath, true))) {
+            writer.write(KOL);
+            writer.write(" ");
+            writer.write(String.valueOf(x));
+            writer.newLine();
+            System.out.println("Dữ liệu đã được ghi vào file: ");
+        } catch (IOException e) {
+            System.out.println("Lỗi khi ghi vào file: " + e.getMessage());
         }
     }
 }
